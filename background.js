@@ -3,14 +3,12 @@ const RULE_ID = 12345;
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'downloadImage') {
-
     currentReferer = request.referer || sender.url;
-
-    handleDownload(request.url);
+    handleDownload(request.url, sender.tab.id);
   }
 });
 
-async function handleDownload(imageUrl) {
+async function handleDownload(imageUrl, tabId) {
   try {
     await chrome.declarativeNetRequest.updateSessionRules({
       removeRuleIds: [RULE_ID],
@@ -43,64 +41,72 @@ async function handleDownload(imageUrl) {
     }
 
     const blob = await response.blob();
+    const filename = getFilenameFromResponse(imageUrl, response);
 
-    const base64 = await blobToBase64(blob);
+    console.log('추출된 파일명:', filename);
 
-    const filename = getFilename(imageUrl);
+    // Blob을 ArrayBuffer로 변환하여 content script로 전송
+    const arrayBuffer = await blob.arrayBuffer();
+    const uint8Array = Array.from(new Uint8Array(arrayBuffer));
 
-    chrome.downloads.download({
-      url: base64,
+    chrome.tabs.sendMessage(tabId, {
+      action: 'downloadBlob',
+      data: uint8Array,
       filename: filename,
-      saveAs: false,
-      conflictAction: 'uniquify'
-    }, (downloadId) => {
-      if (chrome.runtime.lastError) {
-        console.error('다운로드 실패:', chrome.runtime.lastError);
-      } else {
-        console.log('다운로드 성공:', downloadId);
-      }
-
-      setTimeout(() => {
-        chrome.declarativeNetRequest.updateSessionRules({
-          removeRuleIds: [RULE_ID]
-        });
-      }, 10000);
+      type: blob.type
     });
+
+    setTimeout(() => {
+      chrome.declarativeNetRequest.updateSessionRules({
+        removeRuleIds: [RULE_ID]
+      });
+    }, 10000);
 
   } catch (error) {
     console.error('오류:', error);
-
-    tryDirectDownload(imageUrl);
+    chrome.tabs.sendMessage(tabId, {
+      action: 'downloadDirect',
+      url: imageUrl
+    });
   }
 }
 
-function blobToBase64(blob) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result);
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
-}
-
-function tryDirectDownload(imageUrl) {
-  const filename = getFilename(imageUrl);
-
-  const separator = imageUrl.includes('?') ? '&' : '?';
-  const downloadUrl = `${imageUrl}${separator}_t=${Date.now()}`;
-
-  chrome.downloads.download({
-    url: downloadUrl,
-    filename: filename,
-    saveAs: false,
-    conflictAction: 'uniquify'
-  }, (downloadId) => {
-    if (chrome.runtime.lastError) {
-      console.error('다운로드 실패:', chrome.runtime.lastError);
-    } else {
-      console.log('다운로드 성공:', downloadId);
+function getFilenameFromResponse(url, response) {
+  const contentDisposition = response.headers.get('content-disposition');
+  if (contentDisposition) {
+    const filenameMatch = contentDisposition.match(/filename[^;=\n]*=["']?([^"'\n;]+)["']?/i);
+    console.log('파일명 매치:', filenameMatch);
+    if (filenameMatch && filenameMatch[1]) {
+      const filename = decodeURIComponent(filenameMatch[1].trim());
+      console.log('추출된 파일명:', filename);
+      if (filename && filename.includes('.')) {
+        return filename;
+      }
     }
-  });
+  }
+
+  const urlFilename = getFilename(url);
+  if (urlFilename && urlFilename.includes('.') && !urlFilename.startsWith('img_') && !urlFilename.startsWith('image_')) {
+    return urlFilename;
+  }
+
+  const contentType = response.headers.get('content-type');
+  let ext = 'jpg';
+
+  if (contentType) {
+    const typeMap = {
+      'image/jpeg': 'jpg',
+      'image/jpg': 'jpg',
+      'image/png': 'png',
+      'image/gif': 'gif',
+      'image/webp': 'webp',
+      'image/bmp': 'bmp',
+      'image/svg+xml': 'svg'
+    };
+    ext = typeMap[contentType.split(';')[0].trim()] || ext;
+  }
+
+  return `image_${Date.now()}.${ext}`;
 }
 
 function getFilename(url) {
