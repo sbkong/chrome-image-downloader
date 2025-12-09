@@ -43,9 +43,6 @@ async function handleDownload(imageUrl, tabId) {
     const blob = await response.blob();
     const filename = getFilenameFromResponse(imageUrl, response);
 
-    console.log('추출된 파일명:', filename);
-
-    // Blob을 ArrayBuffer로 변환하여 content script로 전송
     const arrayBuffer = await blob.arrayBuffer();
     const uint8Array = Array.from(new Uint8Array(arrayBuffer));
 
@@ -63,7 +60,6 @@ async function handleDownload(imageUrl, tabId) {
     }, 10000);
 
   } catch (error) {
-    console.error('오류:', error);
     chrome.tabs.sendMessage(tabId, {
       action: 'downloadDirect',
       url: imageUrl
@@ -75,10 +71,8 @@ function getFilenameFromResponse(url, response) {
   const contentDisposition = response.headers.get('content-disposition');
   if (contentDisposition) {
     const filenameMatch = contentDisposition.match(/filename[^;=\n]*=["']?([^"'\n;]+)["']?/i);
-    console.log('파일명 매치:', filenameMatch);
     if (filenameMatch && filenameMatch[1]) {
       const filename = decodeURIComponent(filenameMatch[1].trim());
-      console.log('추출된 파일명:', filename);
       if (filename && filename.includes('.')) {
         return filename;
       }
