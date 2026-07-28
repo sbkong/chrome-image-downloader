@@ -23,33 +23,3 @@ document.addEventListener('click', async function(event) {
   } catch (error) {
   }
 }, true);
-
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === 'downloadBlob') {
-    const uint8Array = new Uint8Array(request.data);
-    const blob = new Blob([uint8Array], { type: request.type });
-
-    const blobUrl = URL.createObjectURL(blob);
-
-    const a = document.createElement('a');
-    a.href = blobUrl;
-    a.download = request.filename;
-    a.style.display = 'none';
-    document.body.appendChild(a);
-    a.click();
-
-    setTimeout(() => {
-      document.body.removeChild(a);
-      URL.revokeObjectURL(blobUrl);
-    }, 100);
-
-  } else if (request.action === 'downloadDirect') {
-    const a = document.createElement('a');
-    a.href = request.url;
-    a.download = '';
-    a.style.display = 'none';
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => document.body.removeChild(a), 100);
-  }
-});
