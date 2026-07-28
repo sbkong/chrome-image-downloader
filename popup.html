@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html>
 <head>
   <meta charset="UTF-8">
   <style>
@@ -11,15 +11,8 @@
       font-size: 13px;
       color: #222;
     }
-    h1 {
-      font-size: 14px;
-      margin: 0 0 12px;
-    }
-    label {
-      display: block;
-      font-weight: 600;
-      margin-bottom: 6px;
-    }
+    h1 { font-size: 14px; margin: 0 0 12px; }
+    label { display: block; font-weight: 600; margin-bottom: 6px; }
     input[type="text"] {
       width: 100%;
       box-sizing: border-box;
@@ -28,21 +21,9 @@
       border-radius: 5px;
       font-size: 13px;
     }
-    input[type="text"]:focus {
-      outline: none;
-      border-color: #4CAF50;
-    }
-    .hint {
-      color: #777;
-      font-size: 11px;
-      line-height: 1.5;
-      margin: 8px 0 14px;
-    }
-    .hint code {
-      background: #f0f0f0;
-      padding: 1px 4px;
-      border-radius: 3px;
-    }
+    input[type="text"]:focus { outline: none; border-color: #4CAF50; }
+    .hint { color: #777; font-size: 11px; line-height: 1.5; margin: 8px 0 14px; }
+    .hint code { background: #f0f0f0; padding: 1px 4px; border-radius: 3px; }
     button {
       width: 100%;
       padding: 8px;
@@ -55,29 +36,17 @@
       cursor: pointer;
     }
     button:hover { background: #43a047; }
-    #status {
-      text-align: center;
-      color: #4CAF50;
-      font-size: 12px;
-      height: 16px;
-      margin-top: 8px;
-    }
+    #status { text-align: center; color: #4CAF50; font-size: 12px; height: 16px; margin-top: 8px; }
   </style>
 </head>
 <body>
-  <h1>이미지 다운로더 설정</h1>
+  <h1 data-i18n="popupHeading"></h1>
 
-  <label for="subfolder">서브 폴더 이름</label>
-  <input type="text" id="subfolder" placeholder="비워두면 downloads 폴더에 바로 저장">
-  <div class="hint">
-    <code>downloads</code> 폴더 안에 지정한 이름의 서브 폴더를 만들어 저장합니다.<br>
-    비워두면 서브 폴더 없이 저장됩니다.<br>
-    <code>{domain}</code> = 이미지가 있던 홈페이지 도메인명 폴더.<br>
-    <code>{title}</code> = 웹페이지 제목 폴더.<br>
-    조합·중첩 가능 (예: <code>{domain}/{title}</code>).
-  </div>
+  <label for="subfolder" data-i18n="subfolderLabel"></label>
+  <input type="text" id="subfolder" data-i18n-ph="subfolderPlaceholder">
+  <div class="hint" data-i18n-html="subfolderHint"></div>
 
-  <button id="save">저장</button>
+  <button id="save" data-i18n="saveButton"></button>
   <div id="status"></div>
 
   <script src="popup.js"></script>
