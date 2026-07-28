@@ -19,12 +19,12 @@ chrome.downloads.onDeterminingFilename.addListener((item, suggest) => {
 chrome.runtime.onMessage.addListener((request, sender) => {
   if (request.action === 'downloadImage') {
     currentReferer = request.referer || sender.url;
-    handleDownload(request.url, currentReferer);
+    handleDownload(request.url, currentReferer, request.title || '');
   }
 });
 
-async function handleDownload(imageUrl, referer) {
-  const subfolder = await getSubfolder(referer);
+async function handleDownload(imageUrl, referer, title) {
+  const subfolder = await getSubfolder(referer, title);
 
   try {
     await chrome.declarativeNetRequest.updateSessionRules({
@@ -89,7 +89,7 @@ async function handleDownload(imageUrl, referer) {
   }
 }
 
-async function getSubfolder(referer) {
+async function getSubfolder(referer, title) {
   const { subfolder } = await chrome.storage.sync.get('subfolder');
   let pattern = (subfolder || '').trim();
   if (!pattern) return '';
@@ -98,7 +98,14 @@ async function getSubfolder(referer) {
   try {
     domain = new URL(referer).hostname;
   } catch {}
-  pattern = pattern.replace(/\{domain\}/g, domain);
+
+  // Keep the title a single path segment: collapse separators and cap length so
+  // it can't spawn nested dirs or blow past OS path limits.
+  const safeTitle = (title || '').replace(/[\\/]+/g, ' ').trim().slice(0, 100);
+
+  pattern = pattern
+    .replace(/\{domain\}/g, domain)
+    .replace(/\{title\}/g, safeTitle);
 
   return sanitizePath(pattern);
 }
