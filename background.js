@@ -1,26 +1,33 @@
 let currentReferer = null;
 const RULE_ID = 12345;
 
-// Intended filenames for the downloads we start, in order. onDeterminingFilename is
-// the authoritative hook for naming a download and choosing its subfolder: it
-// overrides Chrome's generic default ("다운로드.png") that appears because the
-// download() filename option is dropped for data: URLs.
-//
-// A queue (not a URL map) is used on purpose: matching by item.url is unreliable for
-// large data: URLs. This listener fires for every download in the browser, so we
-// only take from the queue when we have a pending entry and decline otherwise. The
-// companion Video Downloader uses a distinct gesture (Ctrl+Alt+Click) so the two
-// never have a pending entry at the same time.
+// Intended filenames for the downloads we start, in order.
 const pendingPaths = [];
 
-chrome.downloads.onDeterminingFilename.addListener((item, suggest) => {
+// Register onDeterminingFilename ONLY while we have a download in flight, and remove
+// it as soon as our queue drains. onDeterminingFilename is global (it fires for every
+// download in the browser), so a permanently-registered listener from each extension
+// makes Chrome's multi-listener conflict resolution drop filenames. Keeping the
+// listener registered only while we are actively downloading means an idle extension
+// never interferes with the companion Video Downloader's downloads (or anything else).
+function determineFilename(item, suggest) {
   const path = pendingPaths.shift();
   if (path) {
     suggest({ filename: path, conflictAction: 'uniquify' });
   } else {
     suggest();
   }
-});
+  if (pendingPaths.length === 0) {
+    chrome.downloads.onDeterminingFilename.removeListener(determineFilename);
+  }
+}
+
+function enqueue(path) {
+  pendingPaths.push(path);
+  if (!chrome.downloads.onDeterminingFilename.hasListener(determineFilename)) {
+    chrome.downloads.onDeterminingFilename.addListener(determineFilename);
+  }
+}
 
 chrome.runtime.onMessage.addListener((request, sender) => {
   if (request.action === 'downloadImage') {
@@ -68,7 +75,7 @@ async function handleDownload(imageUrl, referer, title) {
     const dataUrl = await blobToDataUrl(blob);
     const path = buildPath(subfolder, filename);
 
-    pendingPaths.push(path);
+    enqueue(path);
     await chrome.downloads.download({
       url: dataUrl,
       filename: path,
@@ -85,7 +92,7 @@ async function handleDownload(imageUrl, referer, title) {
     // Fallback: let Chrome fetch and download the image directly.
     try {
       const fbPath = buildPath(subfolder, getFilename(imageUrl));
-      pendingPaths.push(fbPath);
+      enqueue(fbPath);
       await chrome.downloads.download({
         url: imageUrl,
         filename: fbPath,
