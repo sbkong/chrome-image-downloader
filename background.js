@@ -1,15 +1,20 @@
 let currentReferer = null;
 const RULE_ID = 12345;
 
-// Filenames we intend to assign, in initiation order. onDeterminingFilename is
-// the authoritative hook for naming a download and choosing its subfolder: it
-// overrides Chrome's generic default ("다운로드.png") that appears because the
-// download() filename option is dropped for data: URLs.
-const pendingPaths = [];
+// Intended path per download URL. onDeterminingFilename is the authoritative hook
+// for naming a download and choosing its subfolder: it overrides Chrome's generic
+// default ("다운로드.png") that appears because the download() filename option is
+// dropped for data: URLs.
+//
+// This listener fires for EVERY download in the browser (including ones from other
+// extensions), so we only name downloads we actually started — matched by URL — and
+// decline all others. Otherwise two extensions fight over the same file's name.
+const pendingByUrl = new Map();
 
 chrome.downloads.onDeterminingFilename.addListener((item, suggest) => {
-  const path = pendingPaths.shift();
+  const path = pendingByUrl.get(item.url);
   if (path) {
+    pendingByUrl.delete(item.url);
     suggest({ filename: path, conflictAction: 'uniquify' });
   } else {
     suggest();
@@ -62,7 +67,7 @@ async function handleDownload(imageUrl, referer, title) {
     const dataUrl = await blobToDataUrl(blob);
     const path = buildPath(subfolder, filename);
 
-    pendingPaths.push(path);
+    pendingByUrl.set(dataUrl, path);
     await chrome.downloads.download({
       url: dataUrl,
       filename: path,
@@ -79,7 +84,7 @@ async function handleDownload(imageUrl, referer, title) {
     // Fallback: let Chrome fetch and download the image directly.
     try {
       const fbPath = buildPath(subfolder, getFilename(imageUrl));
-      pendingPaths.push(fbPath);
+      pendingByUrl.set(imageUrl, fbPath);
       await chrome.downloads.download({
         url: imageUrl,
         filename: fbPath,

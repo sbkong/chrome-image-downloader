@@ -1,5 +1,7 @@
 document.addEventListener('click', async function(event) {
-  if (!event.altKey) return;
+  // Alt+Click only. Exclude Ctrl so this doesn't also fire on the video
+  // downloader's Ctrl+Alt+Click gesture.
+  if (!event.altKey || event.ctrlKey) return;
 
   const found = resolveImageAt(event);
   if (!found) return;
