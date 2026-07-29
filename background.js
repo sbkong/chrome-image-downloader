@@ -1,20 +1,21 @@
 let currentReferer = null;
 const RULE_ID = 12345;
 
-// Intended path per download URL. onDeterminingFilename is the authoritative hook
-// for naming a download and choosing its subfolder: it overrides Chrome's generic
-// default ("다운로드.png") that appears because the download() filename option is
-// dropped for data: URLs.
+// Intended filenames for the downloads we start, in order. onDeterminingFilename is
+// the authoritative hook for naming a download and choosing its subfolder: it
+// overrides Chrome's generic default ("다운로드.png") that appears because the
+// download() filename option is dropped for data: URLs.
 //
-// This listener fires for EVERY download in the browser (including ones from other
-// extensions), so we only name downloads we actually started — matched by URL — and
-// decline all others. Otherwise two extensions fight over the same file's name.
-const pendingByUrl = new Map();
+// A queue (not a URL map) is used on purpose: matching by item.url is unreliable for
+// large data: URLs. This listener fires for every download in the browser, so we
+// only take from the queue when we have a pending entry and decline otherwise. The
+// companion Video Downloader uses a distinct gesture (Ctrl+Alt+Click) so the two
+// never have a pending entry at the same time.
+const pendingPaths = [];
 
 chrome.downloads.onDeterminingFilename.addListener((item, suggest) => {
-  const path = pendingByUrl.get(item.url);
+  const path = pendingPaths.shift();
   if (path) {
-    pendingByUrl.delete(item.url);
     suggest({ filename: path, conflictAction: 'uniquify' });
   } else {
     suggest();
@@ -67,7 +68,7 @@ async function handleDownload(imageUrl, referer, title) {
     const dataUrl = await blobToDataUrl(blob);
     const path = buildPath(subfolder, filename);
 
-    pendingByUrl.set(dataUrl, path);
+    pendingPaths.push(path);
     await chrome.downloads.download({
       url: dataUrl,
       filename: path,
@@ -84,7 +85,7 @@ async function handleDownload(imageUrl, referer, title) {
     // Fallback: let Chrome fetch and download the image directly.
     try {
       const fbPath = buildPath(subfolder, getFilename(imageUrl));
-      pendingByUrl.set(imageUrl, fbPath);
+      pendingPaths.push(fbPath);
       await chrome.downloads.download({
         url: imageUrl,
         filename: fbPath,
