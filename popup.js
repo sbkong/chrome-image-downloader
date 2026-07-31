@@ -43,6 +43,28 @@ function updateSelectionUI() {
   downloadSelBtn.disabled = checked.length === 0;
 }
 
+// Size filter (top of the Images tab). Applies instantly to the current list and
+// persists. Images with unknown natural size are kept.
+const filterEnabledInput = document.getElementById('filterEnabled');
+const filterWInput = document.getElementById('filterW');
+const filterHInput = document.getElementById('filterH');
+
+function persistFilter() {
+  chrome.storage.sync.set({
+    filterEnabled: filterEnabledInput.checked,
+    filterW: parseInt(filterWInput.value, 10) || 0,
+    filterH: parseInt(filterHInput.value, 10) || 0
+  });
+}
+function passesFilter(img) {
+  if (!img.w && !img.h) return true; // unknown size -> keep
+  const w = parseInt(filterWInput.value, 10) || 0;
+  const h = parseInt(filterHInput.value, 10) || 0;
+  return (img.w || 0) >= w && (img.h || 0) >= h;
+}
+filterEnabledInput.addEventListener('change', () => { applyFilter(); persistFilter(); });
+[filterWInput, filterHInput].forEach((el) => el.addEventListener('input', () => { applyFilter(); persistFilter(); }));
+
 function currentTab() {
   return new Promise((resolve) => chrome.tabs.query({ active: true, currentWindow: true }, (x) => resolve(x && x[0])));
 }
@@ -169,17 +191,28 @@ function applyStatus(btn, s) {
   updateSelectionUI();
 }
 
+let allImages = [];
+const statusCache = {}; // url -> last status, so states survive a re-filter re-render
+
 function onStatus(s) {
   if (!s || !s.url) return;
+  statusCache[s.url] = s;
   buttonsForUrl(s.url).forEach((b) => applyStatus(b, s));
 }
 
 function render(images) {
+  allImages = images || [];
+  applyFilter();
+}
+
+function applyFilter() {
+  const imgs = filterEnabledInput.checked ? allImages.filter(passesFilter) : allImages;
   listEl.innerHTML = '';
-  images.forEach((img) => makeRow(img));
-  if (!images.length) {
+  imgs.forEach((img) => makeRow(img));
+  if (!imgs.length) {
     const li = document.createElement('li'); li.className = 'empty'; li.textContent = t('noImages'); listEl.appendChild(li);
   }
+  Object.keys(statusCache).forEach((url) => onStatus(statusCache[url])); // restore states
   updateSelectionUI();
 }
 
@@ -243,13 +276,17 @@ captureEl.addEventListener('contextmenu', (e) => e.preventDefault());
 shortcutEnabledInput.addEventListener('change', () => { renderShortcut(); persistShortcut(); });
 badgeEnabledInput.addEventListener('change', () => { chrome.storage.sync.set({ badgeEnabled: badgeEnabledInput.checked }); });
 
-chrome.storage.sync.get(['subfolder', 'clickMod', 'clickButton', 'shortcutEnabled', 'badgeEnabled'], (s) => {
+chrome.storage.sync.get(['subfolder', 'clickMod', 'clickButton', 'shortcutEnabled', 'badgeEnabled', 'filterEnabled', 'filterW', 'filterH'], (s) => {
   subfolderInput.value = s.subfolder || '';
   clickModMods = (s.clickMod || 'alt').split('+').filter(Boolean);
   clickButton = s.clickButton || 'left';
   shortcutEnabledInput.checked = (s.shortcutEnabled !== false);
   badgeEnabledInput.checked = (s.badgeEnabled !== false);
   renderShortcut();
+  filterEnabledInput.checked = !!s.filterEnabled;
+  if (s.filterW != null) filterWInput.value = s.filterW;
+  if (s.filterH != null) filterHInput.value = s.filterH;
+  applyFilter();
 });
 
 document.getElementById('save').addEventListener('click', () => {

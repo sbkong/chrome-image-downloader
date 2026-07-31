@@ -104,8 +104,10 @@ function collectImages() {
     if (r.width < 32 || r.height < 32) return; // skip icons / spacers
     let label;
     try { label = decodeURIComponent(new URL(url, location.href).pathname.split('/').pop() || url); } catch (e) { label = url; }
-    const dim = (im.naturalWidth && im.naturalHeight) ? (im.naturalWidth + 'x' + im.naturalHeight) : '';
-    out.push({ url: url, label: label, dim: dim, thumb: url });
+    const w = im.naturalWidth || Math.round(r.width) || 0;
+    const h = im.naturalHeight || Math.round(r.height) || 0;
+    const dim = (w && h) ? (w + 'x' + h) : '';
+    out.push({ url: url, label: label, dim: dim, thumb: url, w: w, h: h });
   });
   return out;
 }

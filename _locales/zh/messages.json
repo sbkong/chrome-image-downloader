@@ -6,6 +6,8 @@
   "tabImages": { "message": "图片" },
   "tabSettings": { "message": "设置" },
   "imagesHeading": { "message": "检测到的图片" },
+  "filterApply": { "message": "尺寸筛选" },
+  "filterTitle": { "message": "仅显示不小于该尺寸的图片" },
   "refreshImages": { "message": "刷新" },
   "downloadSelected": { "message": "下载所选" },
   "selectAllTitle": { "message": "全选 / 取消" },

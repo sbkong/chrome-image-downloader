@@ -37,6 +37,13 @@
     #selectAll { width: 15px; height: 15px; cursor: pointer; accent-color: #4CAF50; }
     .head-actions { display: flex; gap: 6px; }
 
+    .filter { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; font-size: 12px; color: #444; flex-wrap: wrap; }
+    .filter .fchk { display: flex; align-items: center; gap: 5px; margin: 0; font-weight: 600; cursor: pointer; user-select: none; }
+    .filter .fchk input { width: 15px; height: 15px; cursor: pointer; accent-color: #4CAF50; }
+    .filter input[type="number"] { width: 54px; box-sizing: border-box; padding: 4px 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; }
+    .filter input[type="number"]:focus { outline: none; border-color: #4CAF50; }
+    .filter .unit, .filter .x { color: #888; }
+
     label { display: block; font-weight: 600; margin-bottom: 6px; }
     input[type="text"] { width: 100%; box-sizing: border-box; padding: 7px 9px; border: 1px solid #ccc; border-radius: 5px; font-size: 13px; }
     input[type="text"]:focus { outline: none; border-color: #4CAF50; }
@@ -63,6 +70,12 @@
   </div>
 
   <div id="tab-images" class="tabpane">
+    <div class="filter" title="" data-i18n-title="filterTitle">
+      <label class="fchk"><input type="checkbox" id="filterEnabled"> <span data-i18n="filterApply"></span></label>
+      <input type="number" id="filterW" min="0" value="100"><span class="unit">px</span>
+      <span class="x">×</span>
+      <input type="number" id="filterH" min="0" value="100"><span class="unit">px</span>
+    </div>
     <div class="row">
       <label class="head-left" title="" data-i18n-title="selectAllTitle">
         <input type="checkbox" id="selectAll">

@@ -6,6 +6,8 @@
   "tabImages": { "message": "Images" },
   "tabSettings": { "message": "Settings" },
   "imagesHeading": { "message": "Detected images" },
+  "filterApply": { "message": "Size filter" },
+  "filterTitle": { "message": "Show only images at least this large" },
   "refreshImages": { "message": "Refresh" },
   "downloadSelected": { "message": "Download selected" },
   "selectAllTitle": { "message": "Select / clear all" },

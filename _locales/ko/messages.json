@@ -6,6 +6,8 @@
   "tabImages": { "message": "이미지" },
   "tabSettings": { "message": "설정" },
   "imagesHeading": { "message": "감지된 이미지" },
+  "filterApply": { "message": "크기 필터" },
+  "filterTitle": { "message": "지정한 크기 이상의 이미지만 표시" },
   "refreshImages": { "message": "새로고침" },
   "downloadSelected": { "message": "선택 다운로드" },
   "selectAllTitle": { "message": "전체 선택/해제" },
