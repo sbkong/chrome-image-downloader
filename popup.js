@@ -8,6 +8,7 @@ document.querySelectorAll('[data-i18n-title]').forEach((el) => { el.title = t(el
 
 const listEl = document.getElementById('list');
 let activeTab = null;
+const TRANSPARENT_PX = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
 
 // Tabs: Images / Settings
 document.querySelectorAll('.tab').forEach((tab) => {
@@ -81,14 +82,24 @@ async function loadImages() {
   activeTab = await currentTab();
   listEl.innerHTML = '';
   if (!activeTab) return;
-  render(await getImages(activeTab.id));
-  hydrateFromBackground();
+  // Pull the verified state BEFORE rendering, so re-render restores from the
+  // authoritative set (getDownloads drops files the user deleted).
+  const [images] = await Promise.all([getImages(activeTab.id), refreshStatusCache()]);
+  render(images);
 }
 
-function hydrateFromBackground() {
-  chrome.runtime.sendMessage({ action: 'getDownloads' }, (map) => {
-    void chrome.runtime.lastError;
-    if (map) Object.keys(map).forEach((url) => onStatus(map[url]));
+// Replace the local status cache with the background's authoritative (verified)
+// download state, dropping entries it pruned (deleted files) so they don't get
+// restored on the next render / re-filter.
+function refreshStatusCache() {
+  return new Promise((resolve) => {
+    chrome.runtime.sendMessage({ action: 'getDownloads' }, (map) => {
+      void chrome.runtime.lastError;
+      map = map || {};
+      Object.keys(statusCache).forEach((u) => delete statusCache[u]);
+      Object.assign(statusCache, map);
+      resolve();
+    });
   });
 }
 
@@ -104,8 +115,19 @@ function makeRow(img) {
 
   const thumb = document.createElement('img');
   thumb.className = 'thumb';
-  thumb.src = img.thumb || img.url;
   thumb.loading = 'lazy';
+  thumb.referrerPolicy = 'no-referrer'; // many hotlink servers allow no-referer
+  thumb.addEventListener('error', () => {
+    if (thumb.dataset.fb) { thumb.src = TRANSPARENT_PX; thumb.classList.add('broken'); return; }
+    thumb.dataset.fb = '1';
+    // Ask the background to fetch it with the page's Referer, then use that.
+    chrome.runtime.sendMessage({ action: 'thumb', url: img.url, referer: activeTab ? activeTab.url : '' }, (r) => {
+      void chrome.runtime.lastError;
+      if (r && r.dataUrl) thumb.src = r.dataUrl;
+      else { thumb.src = TRANSPARENT_PX; thumb.classList.add('broken'); }
+    });
+  });
+  thumb.src = img.thumb || img.url;
 
   const meta = document.createElement('div');
   meta.className = 'meta';
@@ -187,6 +209,13 @@ function applyStatus(btn, s) {
     btn.textContent = btn._label;
     if (c) { c.disabled = false; }
     if (btn._status) { btn._status.classList.add('err'); btn._status.textContent = s.message || t('stError'); }
+  } else { // idle / reset (e.g. a downloaded file was deleted) -> back to Download
+    btn.disabled = false;
+    btn.dataset.state = 'idle';
+    btn.classList.remove('done');
+    btn.textContent = btn._label;
+    if (c) { c.disabled = false; }
+    if (btn._status) { btn._status.classList.remove('err'); btn._status.textContent = ''; }
   }
   updateSelectionUI();
 }

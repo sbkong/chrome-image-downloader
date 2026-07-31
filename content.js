@@ -16,7 +16,7 @@ chrome.storage.onChanged.addListener((c, area) => {
   if (c.clickMod) clickMod = c.clickMod.newValue || 'alt';
   if (c.clickButton) clickButton = c.clickButton.newValue || 'left';
   if (c.shortcutEnabled) shortcutEnabled = c.shortcutEnabled.newValue !== false;
-  if (c.badgeEnabled) { badgeEnabled = c.badgeEnabled.newValue !== false; scheduleBadges(); }
+  if (c.badgeEnabled) { badgeEnabled = c.badgeEnabled.newValue !== false; ensurePending = true; scheduleBadges(); }
 });
 
 function modMatches(e) {
@@ -133,6 +133,7 @@ const BG = {
 
 const imgBadges = new Map(); // img element -> badge element
 let badgeScheduled = false;
+let ensurePending = false;  // request a scan to create badges for active downloads
 let ptrX = -1, ptrY = -1;
 let dlCache = {};            // url -> last known status (shared with popup)
 
@@ -140,8 +141,29 @@ chrome.runtime.sendMessage({ action: 'getDownloads' }, (m) => {
   void chrome.runtime.lastError;
   dlCache = m || {};
   imgBadges.forEach(hydrateBadge);
+  ensurePending = true; // show badges for already downloading / downloaded images
   scheduleBadges();
 });
+
+// Create badges for images that are downloading / done even if never hovered, so
+// their button (progress / open folder) shows immediately. Runs only when there is
+// an active url still missing a badge, so it is not a per-frame full scan.
+function ensureActiveBadges() {
+  const active = new Set(Object.keys(dlCache).filter((u) => {
+    const s = dlCache[u] && dlCache[u].state;
+    return s === 'downloading' || s === 'done';
+  }));
+  if (!active.size) return;
+  const have = new Set();
+  imgBadges.forEach((b) => have.add(b.dataset.dlurl));
+  let missing = false;
+  active.forEach((u) => { if (!have.has(u)) missing = true; });
+  if (!missing) return;
+  document.querySelectorAll('img').forEach((im) => {
+    const url = im.currentSrc || im.src;
+    if (url && active.has(url) && !imgBadges.has(im)) imgBadges.set(im, makeBadge(im, url));
+  });
+}
 
 function renderBadge(b) {
   const s = b.dataset.state || 'idle';
@@ -213,6 +235,9 @@ function applyBadgeStatus(s) {
   if (!s || !s.url) return;
   dlCache[s.url] = s;
   imgBadges.forEach((b) => { if (b.dataset.dlurl === s.url) applyStatusToBadge(b, s); });
+  // A download started (e.g. from the popup) on an image with no badge yet -> make
+  // one so it shows without a hover.
+  if (s.state === 'downloading' || s.state === 'done') ensurePending = true;
   scheduleBadges();
 }
 
@@ -236,21 +261,29 @@ function imageAt(x, y) {
   return null;
 }
 
+// The badge sits just outside the top-right of the image; extend the "hovered"
+// area up/right so moving the cursor from the image onto the badge keeps it shown
+// (otherwise it hides the moment the cursor leaves the image and can't be clicked).
+function inHotZone(r) {
+  return ptrX >= r.left - 4 && ptrX <= r.right + 44 && ptrY >= r.top - 44 && ptrY <= r.bottom + 44;
+}
+
 function positionBadges() {
   badgeScheduled = false;
   if (!badgeEnabled) { imgBadges.forEach((b) => { b.style.display = 'none'; }); return; }
-  // Only track the hovered image plus any image currently downloading / done, so
-  // we never iterate/measure every image on the page.
-  const hovered = imageAt(ptrX, ptrY);
-  if (hovered && hovered.url && !imgBadges.has(hovered.el)) {
-    imgBadges.set(hovered.el, makeBadge(hovered.el, hovered.url));
+  if (ensurePending) { ensurePending = false; ensureActiveBadges(); }
+  // Track the image under the cursor plus any image currently downloading / done,
+  // so we never iterate/measure every image on the page.
+  const under = imageAt(ptrX, ptrY);
+  if (under && under.url && !imgBadges.has(under.el)) {
+    imgBadges.set(under.el, makeBadge(under.el, under.url));
   }
   imgBadges.forEach((b, el) => {
     if (!el.isConnected) { b.remove(); imgBadges.delete(el); return; }
     const r = el.getBoundingClientRect();
     const onScreen = r.width > 24 && r.height > 24 && r.bottom > 0 && r.right > 0 && r.top < innerHeight && r.left < innerWidth;
     const persist = b.dataset.state === 'downloading' || b.dataset.state === 'done';
-    const isHover = hovered && hovered.el === el;
+    const isHover = inHotZone(r);
     if ((!isHover && !persist) || !onScreen) { b.style.display = 'none'; return; }
     b.style.display = 'flex';
     // Just outside the top-right corner; clamp to the viewport.

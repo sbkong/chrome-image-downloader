@@ -41,7 +41,20 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return;
   }
   if (request.action === 'getDownloads') {
-    chrome.storage.session.get('downloads').then((g) => sendResponse(g.downloads || {}));
+    (async () => {
+      const g = await chrome.storage.session.get('downloads');
+      Object.assign(downloads, g.downloads || {});
+      await verifyDownloads(); // drop finished files the user has since deleted
+      sendResponse(downloads);
+    })();
+    return true;
+  }
+  if (request.action === 'thumb') {
+    // The popup couldn't load this image directly (hotlink / referer). Fetch it
+    // here with the page's Referer and hand back a data URL for the thumbnail.
+    fetchImageDataUrl(request.url, request.referer)
+      .then((dataUrl) => sendResponse({ dataUrl }))
+      .catch(() => sendResponse({ dataUrl: null }));
     return true;
   }
   if (request.action === 'reveal') {
@@ -55,15 +68,42 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 });
 
+// Drop "done" entries whose file no longer exists on disk (user deleted it), so
+// their control goes back to "download". Uses the Downloads API's `exists` flag
+// (cheap — no external process). Missing download records count as deleted.
+async function verifyDownloads() {
+  const dones = Object.keys(downloads).filter((u) => downloads[u] && downloads[u].state === 'done' && downloads[u].downloadId != null);
+  if (!dones.length) return;
+  await Promise.all(dones.map((u) => new Promise((resolve) => {
+    chrome.downloads.search({ id: downloads[u].downloadId }, (items) => {
+      const it = items && items[0];
+      if (!it || it.exists === false) {
+        const tabId = downloads[u].tabId;
+        delete downloads[u];
+        // Same broadcast path as a live update, so both the popup row AND the
+        // on-image badge fall back to "download".
+        broadcast({ url: u, state: 'idle' }, tabId);
+      }
+      resolve();
+    });
+  })));
+  chrome.storage.session.set({ downloads });
+}
+
 // ---- Shared state ---------------------------------------------------------
+// runtime.sendMessage reaches the popup; content scripts (the on-image badge)
+// only get messages sent to their tab. Send to both.
+function broadcast(status, tabId) {
+  chrome.runtime.sendMessage({ action: 'status', status }).catch(() => {});
+  if (tabId != null) chrome.tabs.sendMessage(tabId, { action: 'status', status }).catch(() => {});
+}
+
 function setDL(url, patch, tabId) {
   downloads[url] = Object.assign({ url }, downloads[url], patch);
   if (tabId != null && downloads[url].tabId == null) downloads[url].tabId = tabId;
   chrome.storage.session.set({ downloads });
-  const status = Object.assign({}, downloads[url]);
-  chrome.runtime.sendMessage({ action: 'status', status }).catch(() => {});
   const tid = tabId != null ? tabId : downloads[url].tabId;
-  if (tid != null) chrome.tabs.sendMessage(tid, { action: 'status', status }).catch(() => {});
+  broadcast(Object.assign({}, downloads[url]), tid);
 }
 
 async function startImageDownload(imageUrl, referer, title, tabId) {
@@ -153,6 +193,38 @@ function sanitizeSegment(segment) {
 function buildPath(subfolder, filename) {
   const leaf = sanitizeSegment(filename.replace(/[\\/]+/g, '_')) || `image_${Date.now()}.jpg`;
   return subfolder ? `${subfolder}/${leaf}` : leaf;
+}
+
+// Fetch an image with the page's Referer (via a transient DNR rule) so hotlink-
+// protected thumbnails the popup can't load directly still show. Same-page thumbs
+// share one referer, so a single rule serves a burst; it self-removes when idle.
+const THUMB_RULE_ID = 12346;
+let thumbRuleTimer = null;
+async function ensureThumbReferer(referer) {
+  if (!referer) return;
+  await chrome.declarativeNetRequest.updateSessionRules({
+    removeRuleIds: [THUMB_RULE_ID],
+    addRules: [{
+      id: THUMB_RULE_ID,
+      priority: 1,
+      action: { type: 'modifyHeaders', requestHeaders: [{ header: 'Referer', operation: 'set', value: referer }] },
+      condition: { urlFilter: '*', resourceTypes: ['xmlhttprequest'] }
+    }]
+  });
+  if (thumbRuleTimer) clearTimeout(thumbRuleTimer);
+  thumbRuleTimer = setTimeout(() => {
+    chrome.declarativeNetRequest.updateSessionRules({ removeRuleIds: [THUMB_RULE_ID] });
+    thumbRuleTimer = null;
+  }, 20000);
+}
+
+async function fetchImageDataUrl(url, referer) {
+  await ensureThumbReferer(referer);
+  const resp = await fetch(url, { headers: { 'Referer': referer || '' } });
+  if (!resp.ok) throw new Error('HTTP ' + resp.status);
+  const blob = await resp.blob();
+  if (!/^image\//.test(blob.type) || blob.size > 8 * 1024 * 1024) throw new Error('unsuitable');
+  return await blobToDataUrl(blob);
 }
 
 async function blobToDataUrl(blob) {
