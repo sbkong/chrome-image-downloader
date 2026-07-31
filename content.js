@@ -115,10 +115,14 @@ function collectImages() {
 // ---- On-image download badge (shown on hover, top-right of the image) ------
 // Mirrors the popup button: download (green) -> downloading (blue) -> open folder
 // (green), driven by the background's status broadcasts, matched here by URL.
+// A "photo" glyph so the image badge is visually distinct from the Video
+// Downloader's download-arrow badge (which is a separate extension).
 const DL_ICON =
-  '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" ' +
-  'stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">' +
-  '<path d="M12 3v12"/><path d="M7 11l5 5 5-5"/><path d="M5 21h14"/></svg>';
+  '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" ' +
+  'stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+  '<rect x="3" y="4" width="18" height="16" rx="2"/>' +
+  '<circle cx="8.5" cy="9.5" r="1.6"/>' +
+  '<path d="M21 15l-5-4-9 8"/></svg>';
 const FOLDER_ICON =
   '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" ' +
   'stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">' +
@@ -206,6 +210,7 @@ function startBadge(b, url) {
 function makeBadge(el, url) {
   const b = document.createElement('div');
   b.setAttribute('aria-label', 'Download image');
+  b.dataset.mediadl = 'image'; // lets the Video Downloader / us detect each other's badges
   b.dataset.state = 'idle';
   b.dataset.dlurl = url;
   b.style.cssText = [
@@ -291,11 +296,30 @@ function positionBadges() {
     let top = r.top + gap;
     let left = r.right + gap;
     if (left + size > innerWidth - 2) left = r.right - size - gap;
+    // If the Video Downloader's badge (separate extension) is on the same spot
+    // (e.g. a video with a poster image, or overlapping media), drop below it so
+    // the two icons don't stack.
+    let guard = 0;
+    while (guard++ < 4 && overlapsVideoBadge(top, left, size, b)) top += size + gap;
     top = Math.max(2, Math.min(top, innerHeight - size - 2));
     left = Math.max(2, Math.min(left, innerWidth - size - 2));
     b.style.top = top + 'px';
     b.style.left = left + 'px';
   });
+}
+
+// True if a visible Video Downloader badge already occupies (top,left). We yield
+// to it (image badge moves), so stacking is deterministic and jitter-free.
+function overlapsVideoBadge(top, left, size, self) {
+  const others = document.querySelectorAll('[data-mediadl="video"]');
+  for (const o of others) {
+    if (o === self || o.style.display === 'none') continue;
+    const ot = parseFloat(o.style.top);
+    const ol = parseFloat(o.style.left);
+    if (isNaN(ot) || isNaN(ol)) continue;
+    if (Math.abs(ot - top) < size && Math.abs(ol - left) < size) return true;
+  }
+  return false;
 }
 
 function scheduleBadges() {
