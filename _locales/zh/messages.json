@@ -29,5 +29,8 @@
   "clickRight": { "message": "右键" },
   "badgeEnabledLabel": { "message": "在图片上显示下载按钮（悬停）" },
   "usage": { "message": "用法：{combo} + 点击图片，或使用列表 / 图片上的图标" },
-  "usageNoShortcut": { "message": "用法：使用列表或图片上的图标" }
+  "usageNoShortcut": { "message": "用法：使用列表或图片上的图标" },
+  "supportNote": { "message": "本扩展完全免费，所有功能均无限制。" },
+  "supportKofi": { "message": "请我喝杯咖啡" },
+  "supportSource": { "message": "源代码" }
 }

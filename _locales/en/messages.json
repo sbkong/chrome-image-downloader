@@ -29,5 +29,8 @@
   "clickRight": { "message": "Right click" },
   "badgeEnabledLabel": { "message": "Show download button on image (hover)" },
   "usage": { "message": "How to use: {combo} + Click an image, or use the list / on-image icon" },
-  "usageNoShortcut": { "message": "How to use: use the list or the on-image icon" }
+  "usageNoShortcut": { "message": "How to use: use the list or the on-image icon" },
+  "supportNote": { "message": "Free, with every feature unlocked. Always." },
+  "supportKofi": { "message": "Buy me a coffee" },
+  "supportSource": { "message": "Source" }
 }

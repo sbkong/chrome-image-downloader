@@ -29,5 +29,8 @@
   "clickRight": { "message": "우클릭" },
   "badgeEnabledLabel": { "message": "이미지 위 다운로드 버튼 표시 (마우스 오버)" },
   "usage": { "message": "사용법: 이미지를 {combo} + 클릭, 또는 목록/이미지 위 아이콘으로 다운로드" },
-  "usageNoShortcut": { "message": "사용법: 목록 또는 이미지 위 아이콘으로 다운로드" }
+  "usageNoShortcut": { "message": "사용법: 목록 또는 이미지 위 아이콘으로 다운로드" },
+  "supportNote": { "message": "이 확장은 무료이며 모든 기능이 제한 없이 열려 있습니다." },
+  "supportKofi": { "message": "후원하기" },
+  "supportSource": { "message": "소스 보기" }
 }
