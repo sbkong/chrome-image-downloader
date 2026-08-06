@@ -15,6 +15,13 @@
     #refresh { background: #666; } #refresh:hover { background: #555; }
     #downloadSel { background: #388e3c; } #downloadSel:hover { background: #2e7d32; }
 
+    /* Custom checkbox: accent-color leaves Chrome to pick the tick color (black on #4CAF50), so draw it. */
+    input[type="checkbox"] { appearance: none; -webkit-appearance: none; flex: none; width: 15px; height: 15px; box-sizing: border-box; border: 1px solid #bbb; border-radius: 3px; background: #fff; cursor: pointer; }
+    input[type="checkbox"]:hover { border-color: #4CAF50; }
+    input[type="checkbox"]:checked { border-color: #4CAF50; background-color: #4CAF50; background-repeat: no-repeat; background-position: center; background-size: 11px 11px;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round' d='M3.5 8.5l3 3 6-6'/%3E%3C/svg%3E"); }
+    input[type="checkbox"]:disabled { opacity: .4; cursor: default; border-color: #bbb; }
+
     .tabs { display: flex; gap: 4px; border-bottom: 1px solid #eee; margin-bottom: 12px; }
     .tab { background: none; color: #666; border: none; border-radius: 0; border-bottom: 2px solid transparent; padding: 7px 12px; font-size: 13px; font-weight: 600; }
     .tab:hover { background: #f5f5f5; }
@@ -23,8 +30,7 @@
     #list { list-style: none; margin: 8px 0 0; padding: 0; max-height: 300px; overflow-y: auto; }
     #list li { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid #f2f2f2; }
     #list li .pick { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; margin: 0; font-weight: 400; cursor: pointer; }
-    #list li input.sel { flex: none; width: 15px; height: 15px; cursor: pointer; accent-color: #4CAF50; }
-    #list li input.sel:disabled { cursor: default; opacity: .4; }
+    #list li input.sel { flex: none; }
     #list .thumb { flex: none; width: 42px; height: 42px; object-fit: cover; border-radius: 4px; background: #eee; }
     #list .thumb.broken { border: 1px dashed #ccc; }
     #list .meta { flex: 1; min-width: 0; }
@@ -35,12 +41,10 @@
     .empty { color: #999; font-size: 12px; padding: 6px 0; }
 
     .head-left { display: flex; align-items: center; gap: 6px; margin: 0; font-weight: 400; cursor: pointer; user-select: none; }
-    #selectAll { width: 15px; height: 15px; cursor: pointer; accent-color: #4CAF50; }
     .head-actions { display: flex; gap: 6px; }
 
     .filter { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; font-size: 12px; color: #444; flex-wrap: wrap; }
     .filter .fchk { display: flex; align-items: center; gap: 5px; margin: 0; font-weight: 600; cursor: pointer; user-select: none; }
-    .filter .fchk input { width: 15px; height: 15px; cursor: pointer; accent-color: #4CAF50; }
     .filter input[type="number"] { width: 54px; box-sizing: border-box; padding: 4px 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; }
     .filter input[type="number"]:focus { outline: none; border-color: #4CAF50; }
     .filter .unit, .filter .x { color: #888; }
@@ -51,7 +55,6 @@
     .hint { color: #777; font-size: 11px; line-height: 1.5; margin: 8px 0 10px; }
     .hint code { background: #f0f0f0; padding: 1px 4px; border-radius: 3px; }
     .toggle { display: flex; align-items: center; gap: 6px; font-weight: 400; cursor: pointer; user-select: none; margin: 6px 0; }
-    .toggle input { width: 15px; height: 15px; cursor: pointer; accent-color: #4CAF50; }
     .capture { box-sizing: border-box; width: 100%; padding: 8px 9px; margin: 4px 0 8px; border: 1px dashed #bbb; border-radius: 5px; font-size: 13px; color: #333; background: #fafafa; cursor: pointer; user-select: none; text-align: center; }
     .capture:focus { outline: none; }
     .capture.capturing { border-style: solid; border-color: #4CAF50; background: #f1f8f1; color: #2e7d32; }
@@ -108,6 +111,15 @@
 
       <button id="save" data-i18n="saveButton"></button>
       <div id="saveStatus"></div>
+    </div>
+
+    <div class="support">
+      <span data-i18n="supportNote"></span><br>
+      <a href="https://ko-fi.com/sbkong" target="_blank" rel="noopener noreferrer" data-i18n="supportKofi"></a>
+      <span class="sep">·</span>
+      <a href="https://github.com/sponsors/sbkong" target="_blank" rel="noopener noreferrer">GitHub Sponsors</a>
+      <span class="sep">·</span>
+      <a href="https://github.com/sbkong/chrome-image-downloader" target="_blank" rel="noopener noreferrer" data-i18n="supportSource"></a>
     </div>
   </div>
 
